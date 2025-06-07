@@ -1,25 +1,45 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from 'next/navigation';
 import MainLayout from "@/components/layouts/MainLayout";
 import {
   ArrowUpIcon,
   WrenchIcon,
   ClockIcon,
 } from "@heroicons/react/24/outline";
+import AuthService from '@/lib/api/authService';
+import { LoadingSpinnerIcon } from '@/components/ui/Icons'; // Assuming this path is correct
 import MaintenanceService from "@/lib/api/maintenanceService";
 import { MaintenanceRecord } from "@/domain/maintenance/types";
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const [totalVehiclesCount, setTotalVehiclesCount] = useState<number | string>("-");
   const [maintenanceRecordsCount, setMaintenanceRecordsCount] = useState<number | string>("-");
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isDataLoading, setIsDataLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [recentMaintenanceData, setRecentMaintenanceData] = useState<MaintenanceRecord[]>([]);
 
   useEffect(() => {
+    const checkAuth = async () => {
+      const authStatus = await AuthService.isAuthenticated();
+      if (authStatus) {
+        setIsUserAuthenticated(true);
+      } else {
+        router.push('/auth/login');
+      }
+      setIsAuthLoading(false);
+    };
+    checkAuth();
+  }, [router]);
+
+  useEffect(() => {
     const fetchDashboardData = async () => {
-      setIsLoading(true);
+      if (!isUserAuthenticated) return; // Don't fetch if not authenticated
+      setIsDataLoading(true);
       setError(null);
       try {
         const response = await MaintenanceService.getMaintenanceRecords();
@@ -44,21 +64,34 @@ export default function DashboardPage() {
         setMaintenanceRecordsCount("Err");
         console.error("Dashboard fetch error:", err);
       }
-      setIsLoading(false);
+      setIsDataLoading(false);
     };
 
     fetchDashboardData();
-  }, []);
+  }, [isUserAuthenticated]); // Added isUserAuthenticated
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <LoadingSpinnerIcon className="h-12 w-12 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isUserAuthenticated) {
+    // Should be redirected, but as a fallback, render null or a message
+    return null; 
+  }
+
   // Stats will be updated by useEffect
   const stats = [
     {
       name: "Total Vehicles",
-      value: isLoading ? "..." : String(totalVehiclesCount),
+      value: isDataLoading ? "..." : String(totalVehiclesCount),
       icon: <ArrowUpIcon className="h-6 w-6 text-blue-500" />,
     },
     {
       name: "Maintenance Records",
-      value: isLoading ? "..." : String(maintenanceRecordsCount),
+      value: isDataLoading ? "..." : String(maintenanceRecordsCount),
       icon: <WrenchIcon className="h-6 w-6 text-green-500" />,
     },
     {
@@ -122,22 +155,22 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {isLoading && (
+                {isDataLoading && (
                   <tr>
                     <td colSpan={4} className="text-center py-4 text-sm text-gray-500">Carregando manutenções recentes...</td>
                   </tr>
                 )}
-                {!isLoading && error && (
+                {!isDataLoading && error && (
                   <tr>
                     <td colSpan={4} className="text-center py-4 text-sm text-red-500">Falha ao carregar manutenções: {error}</td>
                   </tr>
                 )}
-                {!isLoading && !error && recentMaintenanceData.length === 0 && (
+                {!isDataLoading && !error && recentMaintenanceData.length === 0 && (
                   <tr>
                     <td colSpan={4} className="text-center py-4 text-sm text-gray-500">Nenhuma manutenção recente encontrada.</td>
                   </tr>
                 )}
-                {!isLoading && !error && recentMaintenanceData.map((record) => (
+                {!isDataLoading && !error && recentMaintenanceData.map((record) => (
                   <tr key={record.id}>
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                       {record.modelo || 'N/A'} ({record.placa || 'N/A'})

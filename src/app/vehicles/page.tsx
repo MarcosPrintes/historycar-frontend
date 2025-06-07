@@ -1,8 +1,7 @@
 "use client";
 
-"use client";
-
-import React, { useEffect, useReducer } from "react";
+import React, { useEffect, useReducer, useState } from "react";
+import { useRouter } from 'next/navigation';
 import MainLayout from "@/components/layouts/MainLayout";
 import {
   PlusIcon,
@@ -19,6 +18,7 @@ import AddVehicleModal from "@/components/vehicles/AddVehicleModal";
 import DeleteVehicleModal from "@/components/vehicles/DeleteVehicleModal";
 import AddMaintenanceModal from "@/components/vehicles/AddMaintenanceModal";
 import Loading from "@/components/ui/Loading";
+import AuthService from '@/lib/api/authService';
 import { LoadingSpinnerIcon } from "@/components/ui/Icons";
 
 type VehicleState = {
@@ -114,6 +114,9 @@ function vehicleReducer(
 }
 
 export default function VehiclesPage() {
+  const router = useRouter();
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const initialState: VehicleState = {
     vehicles: [],
     ui: {
@@ -134,6 +137,19 @@ export default function VehiclesPage() {
   };
 
   const [state, dispatch] = useReducer(vehicleReducer, initialState);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const authStatus = await AuthService.isAuthenticated();
+      if (authStatus) {
+        setIsUserAuthenticated(true);
+      } else {
+        router.push('/auth/login');
+      }
+      setIsAuthLoading(false);
+    };
+    checkAuth();
+  }, [router]);
 
   const loadVehicles = async () => {
     try {
@@ -159,8 +175,10 @@ export default function VehiclesPage() {
   };
 
   useEffect(() => {
-    loadVehicles();
-  }, []);
+    if (isUserAuthenticated) {
+      loadVehicles();
+    }
+  }, [isUserAuthenticated]);
 
   const handleDeleteClick = (vehicle: Vehicle) => {
     dispatch({ type: "START_DELETE", payload: vehicle });
@@ -278,6 +296,18 @@ export default function VehiclesPage() {
       dispatch({ type: "SET_LOADING", payload: false });
     }
   };
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <LoadingSpinnerIcon className="h-12 w-12 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isUserAuthenticated) {
+    return null; // Or a redirecting message, but router.push should handle it
+  }
 
   return (
     <MainLayout>

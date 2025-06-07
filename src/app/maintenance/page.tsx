@@ -1,18 +1,23 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from 'next/navigation';
 import MainLayout from "@/components/layouts/MainLayout";
 import MaintenanceService from "@/lib/api/maintenanceService";
 import { MaintenanceRecord } from "@/domain/maintenance/types";
 import { TrashIcon } from '@heroicons/react/24/outline';
+import AuthService from '@/lib/api/authService';
 import { LoadingSpinnerIcon } from '@/components/ui/Icons';
 import { toast } from "react-toastify";
 
 const MaintenancePage: React.FC = () => {
+  const router = useRouter();
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const [maintenanceRecords, setMaintenanceRecords] = useState<
     MaintenanceRecord[]
   >([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isDataLoading, setIsDataLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -37,8 +42,22 @@ const MaintenancePage: React.FC = () => {
   };
 
   useEffect(() => {
+    const checkAuth = async () => {
+      const authStatus = await AuthService.isAuthenticated();
+      if (authStatus) {
+        setIsUserAuthenticated(true);
+      } else {
+        router.push('/auth/login');
+      }
+      setIsAuthLoading(false);
+    };
+    checkAuth();
+  }, [router]);
+
+  useEffect(() => {
     const fetchMaintenanceRecords = async () => {
-      setIsLoading(true);
+      if (!isUserAuthenticated) return; // Don't fetch if not authenticated
+      setIsDataLoading(true);
       setError(null);
       try {
         const response = await MaintenanceService.getMaintenanceRecords();
@@ -61,11 +80,23 @@ const MaintenancePage: React.FC = () => {
         );
         console.error(err);
       }
-      setIsLoading(false);
+      setIsDataLoading(false);
     };
 
     fetchMaintenanceRecords();
-  }, []);
+  }, [isUserAuthenticated]);
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <LoadingSpinnerIcon className="h-12 w-12 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isUserAuthenticated) {
+    return null; // Or a redirecting message, router.push should handle
+  }
+
   return (
     <MainLayout>
       <div className="py-6">
@@ -89,11 +120,11 @@ const MaintenancePage: React.FC = () => {
 
         {/* Maintenance content area */}
         <div className="bg-white shadow-md rounded-lg p-6">
-          {isLoading && (
+          {isDataLoading && (
             <p className="text-gray-700">Carregando registros...</p>
           )}
           {error && <p className="text-red-500">Erro: {error}</p>}
-          {!isLoading && !error && (
+          {!isDataLoading && !error && (
             <>
               {maintenanceRecords.length === 0 ? (
                 <p className="text-gray-700">

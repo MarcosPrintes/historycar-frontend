@@ -211,6 +211,14 @@ export default function LoginPage() {
                 Registre-se
               </Link>
             </p>
+            <p className="mt-4 text-sm text-gray-600">
+              <Link
+                href="/"
+                className="font-medium text-blue-600 hover:text-blue-500"
+              >
+                &larr; Voltar para Home
+              </Link>
+            </p>
           </div>
         </form>
       </div>
