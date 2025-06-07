@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useReducer } from "react";
 import MainLayout from "@/components/layouts/MainLayout";
 import {
   ArrowUpIcon,
@@ -10,41 +10,96 @@ import {
 import MaintenanceService from "@/lib/api/maintenanceService";
 import { MaintenanceRecord } from "@/domain/maintenance/types";
 
+// State and Reducer definitions
+interface DashboardState {
+  totalVehiclesCount: number | string;
+  maintenanceRecordsCount: number | string;
+  recentMaintenanceData: MaintenanceRecord[];
+  isDataLoading: boolean;
+  error: string | null;
+}
+
+type DashboardAction =
+  | { type: 'FETCH_INIT' }
+  | { 
+      type: 'FETCH_SUCCESS'; 
+      payload: { 
+        totalVehicles: number; 
+        totalMaintenance: number; 
+        recentRecords: MaintenanceRecord[]; 
+      } 
+    }
+  | { type: 'FETCH_FAILURE'; payload: string };
+
+const initialState: DashboardState = {
+  totalVehiclesCount: "-",
+  maintenanceRecordsCount: "-",
+  recentMaintenanceData: [],
+  isDataLoading: true,
+  error: null,
+};
+
+function dashboardReducer(state: DashboardState, action: DashboardAction): DashboardState {
+  switch (action.type) {
+    case 'FETCH_INIT':
+      return {
+        ...state,
+        isDataLoading: true,
+        error: null,
+      };
+    case 'FETCH_SUCCESS':
+      return {
+        ...state,
+        isDataLoading: false,
+        totalVehiclesCount: action.payload.totalVehicles,
+        maintenanceRecordsCount: action.payload.totalMaintenance,
+        recentMaintenanceData: action.payload.recentRecords,
+        error: null,
+      };
+    case 'FETCH_FAILURE':
+      return {
+        ...state,
+        isDataLoading: false,
+        error: action.payload,
+        totalVehiclesCount: "Err",
+        maintenanceRecordsCount: "Err",
+        recentMaintenanceData: [],
+      };
+    default:
+      return state;
+  }
+}
+
 export default function DashboardPage() {
-  const [totalVehiclesCount, setTotalVehiclesCount] = useState<number | string>("-");
-  const [maintenanceRecordsCount, setMaintenanceRecordsCount] = useState<number | string>("-");
-  const [isDataLoading, setIsDataLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [recentMaintenanceData, setRecentMaintenanceData] = useState<MaintenanceRecord[]>([]);
+  const [state, dispatch] = useReducer(dashboardReducer, initialState);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      setIsDataLoading(true);
-      setError(null);
+      dispatch({ type: 'FETCH_INIT' });
       try {
         const response = await MaintenanceService.getMaintenanceRecords();
         if (response.success && response.data) {
           const records: MaintenanceRecord[] = response.data;
-          setMaintenanceRecordsCount(records.length);
-          
           const uniqueVehicleIds = new Set(records.map(record => record.carFkId));
-          setTotalVehiclesCount(uniqueVehicleIds.size);
-
-          // Sort records by date (most recent first) and take top 5
-          const sortedRecords = [...records].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          setRecentMaintenanceData(sortedRecords.slice(0, 5));
+          const sortedRecords = [...records]
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .slice(0, 5);
+          
+          dispatch({
+            type: 'FETCH_SUCCESS',
+            payload: {
+              totalVehicles: uniqueVehicleIds.size,
+              totalMaintenance: records.length,
+              recentRecords: sortedRecords,
+            }
+          });
         } else {
-          setError(response.message || "Falha ao carregar dados do dashboard.");
-          setTotalVehiclesCount("Err");
-          setMaintenanceRecordsCount("Err");
+          dispatch({ type: 'FETCH_FAILURE', payload: response.message || "Falha ao carregar dados do dashboard." });
         }
       } catch (err) {
-        setError("Erro ao conectar com o servidor.");
-        setTotalVehiclesCount("Err");
-        setMaintenanceRecordsCount("Err");
+        dispatch({ type: 'FETCH_FAILURE', payload: "Erro ao conectar com o servidor." });
         console.error("Dashboard fetch error:", err);
       }
-      setIsDataLoading(false);
     };
 
     fetchDashboardData();
@@ -54,12 +109,12 @@ export default function DashboardPage() {
   const stats = [
     {
       name: "Total Vehicles",
-      value: isDataLoading ? "..." : String(totalVehiclesCount),
+      value: state.isDataLoading ? "..." : String(state.totalVehiclesCount),
       icon: <ArrowUpIcon className="h-6 w-6 text-blue-500" />,
     },
     {
       name: "Maintenance Records",
-      value: isDataLoading ? "..." : String(maintenanceRecordsCount),
+      value: state.isDataLoading ? "..." : String(state.maintenanceRecordsCount),
       icon: <WrenchIcon className="h-6 w-6 text-green-500" />,
     },
     {
@@ -123,22 +178,22 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {isDataLoading && (
+                {state.isDataLoading && (
                   <tr>
                     <td colSpan={4} className="text-center py-4 text-sm text-gray-500">Carregando manutenções recentes...</td>
                   </tr>
                 )}
-                {!isDataLoading && error && (
+                {!state.isDataLoading && state.error && (
                   <tr>
-                    <td colSpan={4} className="text-center py-4 text-sm text-red-500">Falha ao carregar manutenções: {error}</td>
+                    <td colSpan={4} className="text-center py-4 text-sm text-red-500">Falha ao carregar manutenções: {state.error}</td>
                   </tr>
                 )}
-                {!isDataLoading && !error && recentMaintenanceData.length === 0 && (
+                {!state.isDataLoading && !state.error && state.recentMaintenanceData.length === 0 && (
                   <tr>
                     <td colSpan={4} className="text-center py-4 text-sm text-gray-500">Nenhuma manutenção recente encontrada.</td>
                   </tr>
                 )}
-                {!isDataLoading && !error && recentMaintenanceData.map((record) => (
+                {!state.isDataLoading && !state.error && state.recentMaintenanceData.map((record) => (
                   <tr key={record.id}>
                     <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                       {record.modelo || 'N/A'} ({record.placa || 'N/A'})

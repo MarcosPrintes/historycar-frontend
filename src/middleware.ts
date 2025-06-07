@@ -18,11 +18,15 @@ export function middleware(request: NextRequest) {
   if (isProtectedRoute) {
     if (!token) {
       // User is not authenticated, redirect to login
-      // Preserve search params if any (e.g., for redirecting back after login)
       const loginUrl = new URL('/auth/login', request.url);
-      // loginUrl.searchParams.set('redirect', pathname); // Optional: add redirect query param
       return NextResponse.redirect(loginUrl);
     }
+    // User is authenticated and accessing a protected route, set cache control headers
+    const response = NextResponse.next();
+    response.headers.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache'); // For HTTP/1.0 caches
+    response.headers.set('Expires', '0'); // Proxies
+    return response;
   }
 
   if (isAuthRoute) {

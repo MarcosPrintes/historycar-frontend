@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useReducer } from "react";
 import MainLayout from "@/components/layouts/MainLayout";
 import MaintenanceService from "@/lib/api/maintenanceService";
 import { MaintenanceRecord } from "@/domain/maintenance/types";
@@ -8,60 +8,121 @@ import { TrashIcon } from '@heroicons/react/24/outline';
 import { LoadingSpinnerIcon } from '@/components/ui/Icons'; // Keep for delete button if still used, or remove if not.
 import { toast } from "react-toastify";
 
+// State and Reducer definitions
+interface MaintenancePageState {
+  maintenanceRecords: MaintenanceRecord[];
+  isDataLoading: boolean;
+  error: string | null;
+  deletingId: string | null;
+}
+
+type MaintenancePageAction =
+  | { type: 'FETCH_INIT' }
+  | { type: 'FETCH_SUCCESS'; payload: MaintenanceRecord[] }
+  | { type: 'FETCH_FAILURE'; payload: string }
+  | { type: 'DELETE_START'; payload: string } // recordId
+  | { type: 'DELETE_SUCCESS'; payload: string } // recordId
+  | { type: 'DELETE_FAILURE'; payload?: string } // Optional error message for delete
+  | { type: 'RESET_ERROR' };
+
+const initialState: MaintenancePageState = {
+  maintenanceRecords: [],
+  isDataLoading: true,
+  error: null,
+  deletingId: null,
+};
+
+function maintenancePageReducer(state: MaintenancePageState, action: MaintenancePageAction): MaintenancePageState {
+  switch (action.type) {
+    case 'FETCH_INIT':
+      return {
+        ...state,
+        isDataLoading: true,
+        error: null,
+      };
+    case 'FETCH_SUCCESS':
+      return {
+        ...state,
+        isDataLoading: false,
+        maintenanceRecords: action.payload,
+        error: null,
+      };
+    case 'FETCH_FAILURE':
+      return {
+        ...state,
+        isDataLoading: false,
+        error: action.payload,
+      };
+    case 'DELETE_START':
+      return {
+        ...state,
+        deletingId: action.payload,
+      };
+    case 'DELETE_SUCCESS':
+      return {
+        ...state,
+        maintenanceRecords: state.maintenanceRecords.filter(record => record.id !== action.payload),
+        deletingId: null,
+      };
+    case 'DELETE_FAILURE':
+      // toast.error(action.payload || "Falha ao excluir registro."); // Toast handled in component
+      return {
+        ...state,
+        deletingId: null,
+      };
+    case 'RESET_ERROR':
+      return {
+        ...state,
+        error: null,
+      };
+    default:
+      // Consider throwing an error for unhandled actions in development
+      return state;
+  }
+}
+
 const MaintenancePage: React.FC = () => {
-  const [maintenanceRecords, setMaintenanceRecords] = useState<
-    MaintenanceRecord[]
-  >([]);
-  const [isDataLoading, setIsDataLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(maintenancePageReducer, initialState);
 
   const handleDelete = async (recordId: string) => {
     if (!window.confirm("Tem certeza que deseja excluir este registro de manutenção?")) {
       return;
     }
-    setDeletingId(recordId);
+    dispatch({ type: 'DELETE_START', payload: recordId });
     try {
       const response = await MaintenanceService.deleteMaintenanceRecord(recordId);
       if (response.success) {
-        setMaintenanceRecords(prevRecords => prevRecords.filter(record => record.id !== recordId));
+        dispatch({ type: 'DELETE_SUCCESS', payload: recordId });
         toast.success(response.message || "Registro excluído com sucesso!");
       } else {
+        dispatch({ type: 'DELETE_FAILURE' });
         toast.error(response.message || "Falha ao excluir registro.");
       }
     } catch (err) {
+      dispatch({ type: 'DELETE_FAILURE' });
       toast.error("Erro ao conectar com o servidor para excluir.");
       console.error("Delete error:", err);
     }
-    setDeletingId(null);
   };
 
   useEffect(() => {
     const fetchMaintenanceRecords = async () => {
-      setIsDataLoading(true);
-      setError(null);
+      dispatch({ type: 'FETCH_INIT' });
       try {
         const response = await MaintenanceService.getMaintenanceRecords();
         if (response.success && response.data) {
-          setMaintenanceRecords(response.data);
+          dispatch({ type: 'FETCH_SUCCESS', payload: response.data });
         } else {
-          setError(
-            response.message || "Falha ao carregar registros de manutenção."
-          );
-          toast.error(
-            response.message || "Falha ao carregar registros de manutenção."
-          );
+          const errorMessage = response.message || "Falha ao carregar registros de manutenção.";
+          dispatch({ type: 'FETCH_FAILURE', payload: errorMessage });
+          toast.error(errorMessage);
         }
       } catch (err) {
-        setError(
-          "Erro ao conectar com o servidor. Tente novamente mais tarde."
-        );
-        toast.error(
-          "Erro ao conectar com o servidor. Tente novamente mais tarde."
-        );
+        const errorMessage = "Erro ao conectar com o servidor. Tente novamente mais tarde.";
+        dispatch({ type: 'FETCH_FAILURE', payload: errorMessage });
+        toast.error(errorMessage);
         console.error(err);
       }
-      setIsDataLoading(false);
     };
 
     fetchMaintenanceRecords();
@@ -90,13 +151,13 @@ const MaintenancePage: React.FC = () => {
 
         {/* Maintenance content area */}
         <div className="bg-white shadow-md rounded-lg p-6">
-          {isDataLoading && (
+          {state.isDataLoading && (
             <p className="text-gray-700">Carregando registros...</p>
           )}
-          {error && <p className="text-red-500">Erro: {error}</p>}
-          {!isDataLoading && !error && (
+          {state.error && <p className="text-red-500">Erro: {state.error}</p>}
+          {!state.isDataLoading && !state.error && (
             <>
-              {maintenanceRecords.length === 0 ? (
+              {state.maintenanceRecords.length === 0 ? (
                 <p className="text-gray-700">
                   Nenhum registro de manutenção encontrado.
                 </p>
@@ -117,7 +178,7 @@ const MaintenancePage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {maintenanceRecords.map((record) => (
+                      {state.maintenanceRecords.map((record) => (
                         <tr key={record.id}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.modelo || 'N/A'}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{record.placa || 'N/A'}</td>
@@ -130,11 +191,11 @@ const MaintenancePage: React.FC = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                             <button
                               onClick={() => handleDelete(record.id)}
-                              disabled={deletingId === record.id}
+                              disabled={state.deletingId === record.id}
                               className="text-red-600 hover:text-red-800 disabled:opacity-50 p-1 rounded-full hover:bg-red-100 transition-colors"
                               title="Excluir manutenção"
                             >
-                              {deletingId === record.id ? (
+                              {state.deletingId === record.id ? (
                                 <LoadingSpinnerIcon className="h-5 w-5 animate-spin" />
                               ) : (
                                 <TrashIcon className="h-5 w-5" />
