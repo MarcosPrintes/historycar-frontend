@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useEffect, useReducer, useState } from "react";
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useReducer } from "react";
 import MainLayout from "@/components/layouts/MainLayout";
 import {
   PlusIcon,
@@ -18,8 +17,6 @@ import AddVehicleModal from "@/components/vehicles/AddVehicleModal";
 import DeleteVehicleModal from "@/components/vehicles/DeleteVehicleModal";
 import AddMaintenanceModal from "@/components/vehicles/AddMaintenanceModal";
 import Loading from "@/components/ui/Loading";
-import AuthService from '@/lib/api/authService';
-import { LoadingSpinnerIcon } from "@/components/ui/Icons";
 
 type VehicleState = {
   vehicles: Vehicle[];
@@ -114,9 +111,6 @@ function vehicleReducer(
 }
 
 export default function VehiclesPage() {
-  const router = useRouter();
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [isUserAuthenticated, setIsUserAuthenticated] = useState(false);
   const initialState: VehicleState = {
     vehicles: [],
     ui: {
@@ -137,19 +131,6 @@ export default function VehiclesPage() {
   };
 
   const [state, dispatch] = useReducer(vehicleReducer, initialState);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const authStatus = await AuthService.isAuthenticated();
-      if (authStatus) {
-        setIsUserAuthenticated(true);
-      } else {
-        router.push('/auth/login');
-      }
-      setIsAuthLoading(false);
-    };
-    checkAuth();
-  }, [router]);
 
   const loadVehicles = async () => {
     try {
@@ -175,10 +156,8 @@ export default function VehiclesPage() {
   };
 
   useEffect(() => {
-    if (isUserAuthenticated) {
-      loadVehicles();
-    }
-  }, [isUserAuthenticated]);
+    loadVehicles();
+  }, []);
 
   const handleDeleteClick = (vehicle: Vehicle) => {
     dispatch({ type: "START_DELETE", payload: vehicle });
@@ -199,10 +178,8 @@ export default function VehiclesPage() {
         dispatch({ type: "SHOW_ADD_MAINTENANCE_MODAL", payload: false });
         dispatch({ type: "SET_SELECTED_VEHICLE", payload: null });
 
-        // Use success message from service if available, otherwise use a default
         toast.success(response.message || "Manutenção adicionada com sucesso!");
       } else {
-        // Display error message from service
         const errorMessage =
           response.message || "Erro ao adicionar manutenção.";
         toast.error(errorMessage);
@@ -240,10 +217,7 @@ export default function VehiclesPage() {
       } else {
         let errorMessage = "Erro ao excluir veículo.";
 
-        if (response?.code === "401") {
-          errorMessage =
-            "Você precisa estar autenticado para excluir um veículo.";
-        } else if (response?.code === "404") {
+        if (response?.code === "404") {
           errorMessage = "Veículo não encontrado.";
         } else if (response?.message) {
           errorMessage = response.message;
@@ -278,13 +252,9 @@ export default function VehiclesPage() {
 
         await loadVehicles();
 
-        // Use success message from service if available, otherwise use a default
         toast.success(response.message || "Veículo adicionado com sucesso!");
       } else {
-        // Direct handling of the inconsistent response structure from createVehicle
-        // which might have the message directly at root level or in the error object
-        const errorMessage =
-          response.message || response?.message || "Erro ao adicionar veículo.";
+        const errorMessage = response.message || "Erro ao adicionar veículo.";
         toast.error(errorMessage);
       }
     } catch (error) {
@@ -296,18 +266,6 @@ export default function VehiclesPage() {
       dispatch({ type: "SET_LOADING", payload: false });
     }
   };
-
-  if (isAuthLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <LoadingSpinnerIcon className="h-12 w-12 text-blue-600 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!isUserAuthenticated) {
-    return null; // Or a redirecting message, but router.push should handle it
-  }
 
   return (
     <MainLayout>
@@ -349,12 +307,12 @@ export default function VehiclesPage() {
                       <div>
                         <div className="flex text-sm">
                           <p className="font-medium text-blue-600 truncate">
-                            {vehicle?.modelo}
+                            {vehicle.modelo}
                           </p>
                         </div>
                         <div className="mt-2 flex">
                           <div className="flex items-center text-sm text-gray-500">
-                            <p>Placa: {vehicle?.placa}</p>
+                            <p>Placa: {vehicle.placa}</p>
                           </div>
                         </div>
                       </div>

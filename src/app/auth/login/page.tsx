@@ -27,7 +27,9 @@ export default function LoginPage() {
   useEffect(() => {
     const registered = searchParams.get("registered");
     if (registered) {
-      toast.success("Registro realizado com sucesso! Faça login para continuar.");
+      toast.success(
+        "Registro realizado com sucesso! Faça login para continuar."
+      );
     }
   }, [searchParams]);
 
@@ -63,7 +65,7 @@ export default function LoginPage() {
         router.push("/dashboard");
       } else {
         // Exibe mensagem de erro com toast
-        toast.error(response.error?.message || "Email ou senha incorretos");
+        toast.error(response?.message || "Email ou senha incorretos");
       }
     } catch (err) {
       toast.error("Ocorreu um erro durante o login. Tente novamente.");

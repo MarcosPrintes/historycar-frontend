@@ -9,6 +9,7 @@ import {
   RegisterData,
   AuthResponse,
 } from "@/domain/auth/types";
+import { setCookie, getCookie, eraseCookie } from "./cookieUtils";
 
 const AuthService = {
   login: async (
@@ -26,29 +27,25 @@ const AuthService = {
       if (!response.ok) {
         return {
           success: false,
-          error: {
-            message: data.message || "Falha na autenticação",
-            code: response.status.toString(),
-          },
+          message: data.message || "Falha na autenticação",
+          code: response.status.toString(),
         };
       }
 
       if (data.token) {
-        localStorage.setItem("authToken", data.token);
-        localStorage.setItem("isAuthenticated", "true");
+        setCookie("authToken", data.token, 7); // Store cookie for 7 days
       }
 
       return {
         success: true,
         data,
+        message: data.message || "Operação bem-sucedida!",
       };
     } catch (error) {
       console.error("Erro ao realizar login:", error);
       return {
         success: false,
-        error: {
-          message: "Erro ao conectar com o servidor",
-        },
+        message: "Erro ao conectar com o servidor",
       };
     }
   },
@@ -69,41 +66,36 @@ const AuthService = {
       if (!response.ok) {
         return {
           success: false,
-          error: {
-            message: data.message || "Falha no registro",
-            code: response.status.toString(),
-          },
+          message: data.message || "Falha no registro",
+          code: response.status.toString(),
         };
       }
 
       return {
         success: true,
         data,
+        message: data.message || "Operação bem-sucedida!",
       };
     } catch (error) {
       console.error("Erro ao registrar usuário:", error);
       return {
         success: false,
-        error: {
-          message: "Erro ao conectar com o servidor",
-        },
+        message: "Erro ao conectar com o servidor",
       };
     }
   },
 
   logout: (): void => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("isAuthenticated");
+    eraseCookie("authToken");
   },
 
   isAuthenticated: (): boolean => {
-    const token = localStorage.getItem("authToken");
-    const isAuth = localStorage.getItem("isAuthenticated");
-    return !!token && !!isAuth;
+    const token = getCookie("authToken");
+    return !!token;
   },
 
   getToken: (): string | null => {
-    return localStorage.getItem("authToken");
+    return getCookie("authToken");
   },
 
   getProfile: async (): Promise<ApiResponse> => {
@@ -113,9 +105,7 @@ const AuthService = {
       if (!token) {
         return {
           success: false,
-          error: {
-            message: "Usuário não autenticado",
-          },
+          message: "Usuário não autenticado",
         };
       }
 
@@ -132,24 +122,21 @@ const AuthService = {
       if (!response.ok) {
         return {
           success: false,
-          error: {
-            message: data.message || "Falha ao obter perfil",
-            code: response.status.toString(),
-          },
+          message: data.message || "Falha ao obter perfil",
+          code: response.status.toString(),
         };
       }
 
       return {
         success: true,
         data,
+        message: data.message || "Operação bem-sucedida!",
       };
     } catch (error) {
       console.error("Erro ao obter perfil:", error);
       return {
         success: false,
-        error: {
-          message: "Erro ao conectar com o servidor",
-        },
+        message: "Erro ao conectar com o servidor",
       };
     }
   },
