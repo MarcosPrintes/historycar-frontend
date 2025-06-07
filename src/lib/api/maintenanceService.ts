@@ -57,9 +57,16 @@ const MaintenanceService = {
       }
       
       // Verificar se os dados estão em data.records ou diretamente em data
-      const maintenanceRecords = Array.isArray(data) ? data : 
-                                Array.isArray(data.records) ? data.records : 
-                                Array.isArray(data.data) ? data.data : [];
+      const rawRecords = Array.isArray(data) ? data : 
+                                 Array.isArray(data.records) ? data.records : 
+                                 Array.isArray(data.data) ? data.data : [];
+
+      // Ensure each record conforms to MaintenanceRecord, especially 'cost'
+      const maintenanceRecords: MaintenanceRecord[] = rawRecords.map((record: any) => ({
+        ...record,
+        cost: parseFloat(record.cost) || 0, // Parse cost to number, default to 0 if NaN
+        odometer: parseInt(record.odometer, 10) || 0, // Also ensure odometer is a number
+      }));
       
       return {
         success: true,

@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   Bars3Icon,
   XMarkIcon,
@@ -23,6 +23,7 @@ const navigation = [
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const router = useRouter();
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   const handleLogout = () => {
@@ -47,15 +48,24 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 </Link>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                {navigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-gray-500 hover:border-blue-500 hover:text-gray-700"
-                  >
-                    {item.name}
-                  </Link>
-                ))}
+                {navigation.map((item) => {
+                  const isCurrent = pathname === item.href;
+                  let classNames = "inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium";
+                  if (isCurrent) {
+                    classNames += " border-blue-500 text-gray-700";
+                  } else {
+                    classNames += " border-transparent text-gray-500 hover:border-blue-500 hover:text-gray-700";
+                  }
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={classNames}
+                    >
+                      {item.name}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
 
@@ -93,15 +103,24 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         {mobileMenuOpen && (
           <div className="sm:hidden">
             <div className="space-y-1 px-2 pb-3 pt-2">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className="block border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium text-gray-500 hover:border-blue-500 hover:bg-gray-50 hover:text-gray-700"
-                >
-                  {item.name}
-                </Link>
-              ))}
+              {navigation.map((item) => {
+                  const isCurrent = pathname === item.href;
+                  let classNames = "block border-l-4 py-2 pl-3 pr-4 text-base font-medium";
+                  if (isCurrent) {
+                    classNames += " border-blue-500 bg-gray-50 text-gray-700";
+                  } else {
+                    classNames += " border-transparent text-gray-500 hover:border-blue-500 hover:bg-gray-50 hover:text-gray-700";
+                  }
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={classNames}
+                    >
+                      {item.name}
+                    </Link>
+                  );
+                })}
 
               {/* Botão de Logout no menu móvel */}
               <button

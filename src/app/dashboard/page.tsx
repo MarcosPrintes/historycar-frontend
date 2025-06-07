@@ -1,24 +1,64 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import MainLayout from "@/components/layouts/MainLayout";
 import {
   ArrowUpIcon,
   WrenchIcon,
   ClockIcon,
 } from "@heroicons/react/24/outline";
+import MaintenanceService from "@/lib/api/maintenanceService";
+import { MaintenanceRecord } from "@/domain/maintenance/types";
 
 export default function DashboardPage() {
-  // Mock data - in a real app, this would come from the API
-  const mockStats = [
+  const [totalVehiclesCount, setTotalVehiclesCount] = useState<number | string>("-");
+  const [maintenanceRecordsCount, setMaintenanceRecordsCount] = useState<number | string>("-");
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [recentMaintenanceData, setRecentMaintenanceData] = useState<MaintenanceRecord[]>([]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await MaintenanceService.getMaintenanceRecords();
+        if (response.success && response.data) {
+          const records: MaintenanceRecord[] = response.data;
+          setMaintenanceRecordsCount(records.length);
+          
+          const uniqueVehicleIds = new Set(records.map(record => record.carFkId));
+          setTotalVehiclesCount(uniqueVehicleIds.size);
+
+          // Sort records by date (most recent first) and take top 5
+          const sortedRecords = [...records].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          setRecentMaintenanceData(sortedRecords.slice(0, 5));
+        } else {
+          setError(response.message || "Falha ao carregar dados do dashboard.");
+          setTotalVehiclesCount("Err");
+          setMaintenanceRecordsCount("Err");
+        }
+      } catch (err) {
+        setError("Erro ao conectar com o servidor.");
+        setTotalVehiclesCount("Err");
+        setMaintenanceRecordsCount("Err");
+        console.error("Dashboard fetch error:", err);
+      }
+      setIsLoading(false);
+    };
+
+    fetchDashboardData();
+  }, []);
+  // Stats will be updated by useEffect
+  const stats = [
     {
       name: "Total Vehicles",
-      value: "4",
+      value: isLoading ? "..." : String(totalVehiclesCount),
       icon: <ArrowUpIcon className="h-6 w-6 text-blue-500" />,
     },
     {
       name: "Maintenance Records",
-      value: "12",
+      value: isLoading ? "..." : String(maintenanceRecordsCount),
       icon: <WrenchIcon className="h-6 w-6 text-green-500" />,
     },
     {
@@ -28,29 +68,8 @@ export default function DashboardPage() {
     },
   ];
 
-  const recentMaintenance = [
-    {
-      id: 1,
-      vehicle: "Toyota Corolla",
-      service: "Oil Change",
-      date: "2025-05-20",
-      cost: "$45.00",
-    },
-    {
-      id: 2,
-      vehicle: "Honda Civic",
-      service: "Tire Rotation",
-      date: "2025-05-18",
-      cost: "$25.00",
-    },
-    {
-      id: 3,
-      vehicle: "Ford F-150",
-      service: "Brake Inspection",
-      date: "2025-05-15",
-      cost: "$75.00",
-    },
-  ];
+  // const recentMaintenance = [ // This will be replaced by recentMaintenanceData from state
+
 
   return (
     <MainLayout>
@@ -59,7 +78,7 @@ export default function DashboardPage() {
 
         {/* Stats Cards */}
         <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {mockStats.map((stat) => (
+          {stats.map((stat) => (
             <div
               key={stat.name}
               className="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6"
@@ -103,19 +122,34 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {recentMaintenance.map((item) => (
-                  <tr key={item.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {item.vehicle}
+                {isLoading && (
+                  <tr>
+                    <td colSpan={4} className="text-center py-4 text-sm text-gray-500">Carregando manutenções recentes...</td>
+                  </tr>
+                )}
+                {!isLoading && error && (
+                  <tr>
+                    <td colSpan={4} className="text-center py-4 text-sm text-red-500">Falha ao carregar manutenções: {error}</td>
+                  </tr>
+                )}
+                {!isLoading && !error && recentMaintenanceData.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="text-center py-4 text-sm text-gray-500">Nenhuma manutenção recente encontrada.</td>
+                  </tr>
+                )}
+                {!isLoading && !error && recentMaintenanceData.map((record) => (
+                  <tr key={record.id}>
+                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                      {record.modelo || 'N/A'} ({record.placa || 'N/A'})
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.service}
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      {record.serviceType}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.date}
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      {record.date || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.cost}
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      R$ {record.cost.toFixed(2)}
                     </td>
                   </tr>
                 ))}
