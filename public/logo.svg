@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200px" height="200px" viewBox="0 0 200 200" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+    <circle fill="#3B82F6" cx="100" cy="100" r="100"></circle>
+    <g transform="translate(40, 50)">
+      <!-- Contorno do carro -->
+      <path d="M110,50 C110,42 105,35 95,35 L25,35 C15,35 10,42 10,50 L0,70 L0,85 C0,90 5,90 5,90 L5,100 C5,105 10,105 15,105 L30,105 C35,105 40,105 40,100 L40,90 L80,90 L80,100 C80,105 85,105 90,105 L105,105 C110,105 115,105 115,100 L115,90 C115,90 120,90 120,85 L120,70 L110,50 Z" fill="white"></path>
+      
+      <!-- Janelas -->
+      <path d="M90,50 L80,35 L40,35 L30,50 L90,50 Z" fill="#E5E7EB"></path>
+      
+      <!-- Rodas -->
+      <circle fill="#1F2937" cx="30" cy="75" r="12"></circle>
+      <circle fill="#1F2937" cx="90" cy="75" r="12"></circle>
+      <circle fill="#E5E7EB" cx="30" cy="75" r="5"></circle>
+      <circle fill="#E5E7EB" cx="90" cy="75" r="5"></circle>
+      
+      <!-- Faróis -->
+      <rect fill="#FBBF24" x="10" y="50" width="10" height="5" rx="2"></rect>
+      <rect fill="#FBBF24" x="100" y="50" width="10" height="5" rx="2"></rect>
+    </g>
+    
+    <!-- Texto "HistoryCar" -->
+    <text font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="white" text-anchor="middle" x="100" y="170">
+      HistoryCar
+    </text>
+  </g>
+</svg>
